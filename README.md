@@ -1,6 +1,6 @@
-To run:
+To run in the browser:
 
-npm run
+npm run web
 
 
 To build for prod:
