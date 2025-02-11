@@ -1,54 +1,113 @@
-// src/pages/index.tsx
-import { useState } from 'react';
-import { useRouter } from 'next/router';
+import { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
+import Footer from '@/components/footer';
+import Banner from '@/components/banner';
+import dynamic from 'next/dynamic';
+import styles from '@/styles/index.module.css';
+import { HOME_STYLE, DARK_MAP_THEME, ZOOM_LEVEL } from '@/styles/customStyles';
+import { GYMS, MAPS_API_KEY } from '@/utils/consts';
 
-// Sample options with lat/long and floor information.
-const options = [
-  { value: 'loc1', label: 'Location 1', lat: 37.7749, lng: -122.4194, floors: [1, 2, 3] },
-  { value: 'loc2', label: 'Location 2', lat: 40.7128, lng: -74.0060, floors: [1, 2] },
-  // Add more locations as needed.
-];
+const GoogleMapReact = dynamic(() => import('google-map-react'), { ssr: false });
 
 export default function Home() {
-  const router = useRouter();
-  const [selectedOption, setSelectedOption] = useState<any>(null);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [center, setCenter] = useState({ lat: 41.6611, lng: -91.5302 });
+  const [buildingOutline, setBuildingOutline] = useState<any[] | null>(null);
+  const [map, setMap] = useState<any>(null);
+  const [maps, setMaps] = useState<any>(null);
+  const polygonRef = useRef<any>(null);
 
-  const handleSelect = (option: any) => {
+  const handleSelect = async (option: any) => {
     setSelectedOption(option);
-  };
+    if (option) {
+      const newCenter = { 
+        lat: option.coords.lat, 
+        lng: option.coords.lng 
+      };
+      setCenter(newCenter);
 
-  const handleButtonClick = () => {
-    if (selectedOption) {
-      router.push({
-        pathname: '/map',
-        query: {
-          lat: selectedOption.lat,
-          lng: selectedOption.lng,
-          floors: JSON.stringify(selectedOption.floors),
-          label: selectedOption.label,
-        },
-      });
+      if (map && maps) {
+        map.panTo(newCenter);
+      }
+
+      let outline = option.building;
+      setBuildingOutline(outline);
     }
   };
 
+  useEffect(() => {
+    if (map && maps && buildingOutline) {
+      if (polygonRef.current) {
+        polygonRef.current.setMap(null);
+      }
+
+      let convertedPath: { lat: number; lng: number }[];
+      if (Array.isArray(buildingOutline[0])) {
+        convertedPath = buildingOutline[0].map((coord: number[]) => ({
+          lat: coord[1],
+          lng: coord[0]
+        }));
+      } else {
+        convertedPath = buildingOutline.map((coord: number[]) => ({
+          lat: coord[1],
+          lng: coord[0]
+        }));
+      }
+
+      polygonRef.current = new maps.Polygon({
+        paths: convertedPath,
+        strokeColor: "#0000FF",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        map: map
+      });
+
+      const bounds = new maps.LatLngBounds();
+      convertedPath.forEach(coord => bounds.extend(coord));
+      bounds.extend(center);
+      map.fitBounds(bounds);
+    } else {
+      if (!map) console.log("Map instance not set");
+      if (!maps) console.log("Maps API not set");
+      if (!buildingOutline) console.log("Building outline is null or undefined");
+    }
+  }, [buildingOutline, map, maps, center]);
+
+  const handleApiLoaded = ({ map, maps }: { map: any, maps: any }) => {
+    setMap(map);
+    setMaps(maps);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center">
-      <h1 className="text-4xl mb-8">Welcome to the Map App</h1>
-      <div className="w-1/3">
-        <Select
-          options={options}
-          onChange={handleSelect}
-          placeholder="Select a location..."
-          className="text-black"
-        />
+    <div className={styles.container}>
+      <Banner />
+      <div className="flex flex-col md:flex-row items-start justify-between">
+        <div className={styles.headerSearchContainer}>
+          <header className={styles.header}>GymHawk</header>
+          <div className={styles.searchBarContainer}>
+            <Select
+              options={GYMS}
+              onChange={handleSelect}
+              placeholder="Search gyms..."
+              styles={HOME_STYLE}
+            />
+          </div>
+        </div>
+        <div className={styles.mapContainer}>
+          <GoogleMapReact
+            bootstrapURLKeys={{ key: MAPS_API_KEY }}
+            center={center}
+            defaultZoom={ZOOM_LEVEL}
+            yesIWantToUseGoogleMapApiInternals
+            options={DARK_MAP_THEME}
+            onGoogleApiLoaded={handleApiLoaded}
+            resetBoundsOnResize={true}
+            onChange={({ center }) => setCenter(center)}
+          >
+          </GoogleMapReact>
+        </div>
       </div>
-      <button
-        className="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-700 rounded"
-        onClick={handleButtonClick}
-      >
-        Select
-      </button>
+      <Footer />
     </div>
   );
 }
