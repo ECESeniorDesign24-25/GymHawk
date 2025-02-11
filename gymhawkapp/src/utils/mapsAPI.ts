@@ -64,7 +64,7 @@ export const getBuildingOutline = async (id: string) => {
         return null;
         }
 
-        return response.data.results[0].buildings[0].building_outlines[0].display_polygon.coordinates;
+        return response.data.results[0]?.buildings?.[0]?.building_outlines?.[0]?.display_polygon?.coordinates ?? null;
         
     } catch (error) {
         console.error('Geocoding failed:', error instanceof Error ? error.message : error);

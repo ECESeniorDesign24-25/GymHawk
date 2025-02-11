@@ -95,7 +95,7 @@ export default function Home() {
         </div>
         <div className={styles.mapContainer}>
           <GoogleMapReact
-            bootstrapURLKeys={{ key: MAPS_API_KEY }}
+            bootstrapURLKeys={{ key: MAPS_API_KEY! }}
             center={center}
             defaultZoom={ZOOM_LEVEL}
             yesIWantToUseGoogleMapApiInternals
