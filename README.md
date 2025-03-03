@@ -5,9 +5,9 @@ This repository stores the firmware and other miscellaneous items for the GymHaw
 #### IoT Cloud
 All devices are connected to the Arduino IoT Cloud. To set it up, you must add the device to GymHawk "Thing" in Arduino IoT Cloud. Then you can flash the sketch stored on the cloud. 
 
-To sign into the Arduino IoT Cloud platform, go to this link: (Arduino IoT Cloud Platform)[https://app.arduino.cc/] and use the `eceseniordesign20242025@gmail.com` email address.
+To sign into the Arduino IoT Cloud platform, go to this link: [Arduino IoT Cloud Platform](https://app.arduino.cc/) and use the `eceseniordesign20242025@gmail.com` email address.
 
-For each device, we will have a dedicated "Thing" that has the device associated to it with any cloud variables we need. To set up a new device, create a new Thing, and then add device and follow the steps. You will also need to register the device on (UI-DeviceNet)[https://clearpass-e-1-m.its.uiowa.edu/guest/mac_create.php]. You can find the MAC address easily by uploading a dummy sketch using Arduino IDE and check the logs when it is uploaded.
+For each device, we will have a dedicated "Thing" that has the device associated to it with any cloud variables we need. To set up a new device, create a new Thing, and then add device and follow the steps. You will also need to register the device on [UI-DeviceNet](https://clearpass-e-1-m.its.uiowa.edu/guest/mac_create.php). You can find the MAC address easily by uploading a dummy sketch using Arduino IDE and check the logs when it is uploaded.
 
 After that, you will need to associate that device to the Thing, and set up the Network for the thing. Use UI-DeviceNet as the WiFi name and password, and use the secret key for that device as the secret key.
 
