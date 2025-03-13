@@ -26,10 +26,12 @@ int ADXL345 = 0x53;
 float X_out, Y_out, Z_out;
 
 int count = 0;
+unsigned long prevMillis = 0;
 
 void setup() {
   // Initialize serial and wait for port to open:
   Serial.begin(9600);
+  // Serial.println("Serial initialized.");
   // This delay gives the chance to wait for a Serial Monitor without blocking if none is found
   delay(1500); 
   Wire.begin();
@@ -90,42 +92,39 @@ void loop() {
  // Wire.endTransmission(false);
   //Wire.requestFrom(ADXL345, 6, true);   //read 6 registers total, each axis value stored in 2 registers
   
-  while(count < 50){
-    readAccel();
-    count++;
-  }
+  readAccel();
+
   //Serial.println("Sleeping for two minutes");
   //ESP.deepSleep(20e6, WAKE_RF_DEFAULT);
 }
 
 void readAccel()
 {
-    Wire.beginTransmission(ADXL345);
-    Wire.write(0x32);                     //Start with register 0x32 (ACCEL_XOUT_H)
-    Wire.endTransmission(false);
-    Wire.requestFrom(ADXL345, 6, true);
-  
-    X_out = readInt16() / 256.f; //obtain x,y,z-axis values and scale (float)
-    Y_out = readInt16() / 256.f;
-    Z_out = readInt16() / 256.f;
+  Wire.beginTransmission(ADXL345);
+  Wire.write(0x32);                     //Start with register 0x32 (ACCEL_XOUT_H)
+  Wire.endTransmission(false);
+  Wire.requestFrom((uint8_t)ADXL345, (size_t)6, (bool)true);
 
-    if (Z_out < 0.96 || Z_out > 1.04 || X_out > 0.1 || X_out < -0.1 || Y_out > 0.1 || Y_out < -0.1){     //basic movement detection while module is stationed flat
+  X_out = readInt16() / 256.f; //obtain x,y,z-axis values and scale (float)
+  Y_out = readInt16() / 256.f;
+  Z_out = readInt16() / 256.f;
+
+  //basic movement detection while module is stationed flat
+  if (Z_out < 0.96 || Z_out > 1.04 || X_out > 0.1 || X_out < -0.1 || Y_out > 0.1 || Y_out < -0.1){
     MotionDetected();
-      break;
-    }else{
-     NoMotion();
-    }
+  }else{
+    NoMotion();
+  }
 
-    Serial.print("Xa: ");
-    Serial.print(X_out);
-    Serial.print(" Ya: ");
-    Serial.print(Y_out);
-    Serial.print(" Za: ");
-    Serial.print(Z_out);
-    Serial.println("");
-    while (millis() < 100){
-      // do nothing
-    }
+  // Serial.print("Xa: ");
+  // Serial.print(X_out);
+  // Serial.print(" Ya: ");
+  // Serial.print(Y_out);
+  // Serial.print(" Za: ");
+  // Serial.print(Z_out);
+  // Serial.println("");
+
+  delay(100);
 }
 
 int16_t readInt16()              //32-bit integers to 16-bit to account for negative values
@@ -139,7 +138,7 @@ void MotionDetected()
 {
   d1GreenInUse = 1;
   digitalWrite(LED_BUILTIN,LOW);
-  //Serial.println("Motion detected");
+  // Serial.println("Motion detected.");
   
 }
 void NoMotion()
