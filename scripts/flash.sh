@@ -4,7 +4,7 @@
 ESPTOOL=/Users/josephkrueger/.arduino-create/esp8266/esptool/2.5.0-3-20ed2b9/esptool
 
 # update this to the port of your ESP8266
-USB_PORT=/dev/cu.usbserial-130
+USB_PORT=/dev/cu.usbserial-140
 
 # find the most recent binary file with the given pattern
 BIN_FILE=$(find /var/folders/kk/ -path "*/arduino-create-agent*/gymhawkDeviceB_feb14a.bin" -type f -print0 | xargs -0 ls -t | head -n 1)

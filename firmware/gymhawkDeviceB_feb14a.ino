@@ -24,9 +24,13 @@
 int ADXL345 = 0x53;
 
 float X_out, Y_out, Z_out;
+float lastX = 0.0;
+float lastY = 0.0;
+float lastZ = 0.0;
 
 int count = 0;
 unsigned long prevMillis = 0;
+float movementThreshold = 0.05;
 
 void setup() {
   // Initialize serial and wait for port to open:
@@ -75,7 +79,7 @@ void setup() {
   /*
      The following function allows you to obtain more information
      related to the state of network and IoT Cloud connection and errors
-     the higher number the more granular information you’ll get.
+     the higher number the more granular information you'll get.
      The default is 0 (only errors).
      Maximum is 4
  */
@@ -109,22 +113,42 @@ void readAccel()
   Y_out = readInt16() / 256.f;
   Z_out = readInt16() / 256.f;
 
-  //basic movement detection while module is stationed flat
-  if (Z_out < 0.96 || Z_out > 1.04 || X_out > 0.1 || X_out < -0.1 || Y_out > 0.1 || Y_out < -0.1){
+  float Z_diff = Z_out - lastZ;
+  float X_diff = X_out - lastX;
+  float Y_diff = Y_out - lastY;
+
+  // Serial.println("================");
+  // Serial.print("Z: ");
+  // Serial.print(Z_out);
+  // Serial.print(" X: ");
+  // Serial.print(X_out);
+  // Serial.print(" Y: ");
+  // Serial.println(Y_out);
+  // Serial.print("lastZ: ");
+  // Serial.print(lastZ);
+  // Serial.print(" lastX: ");
+  // Serial.print(lastX);
+  // Serial.print(" lastY: ");
+  // Serial.println(lastY);
+  // Serial.print("Z_diff: ");
+  // Serial.print(Z_diff);
+  // Serial.print(" X_diff: ");
+  // Serial.print(X_diff);
+  // Serial.print(" Y_diff: ");
+  // Serial.println(Y_diff);
+
+  // basic movement detection while module is stationed flat
+  if (Z_diff > movementThreshold || Z_diff < -movementThreshold || X_diff > movementThreshold || X_diff < -movementThreshold || Y_diff > movementThreshold || Y_diff < -movementThreshold){
     MotionDetected();
   }else{
     NoMotion();
   }
 
-  // Serial.print("Xa: ");
-  // Serial.print(X_out);
-  // Serial.print(" Ya: ");
-  // Serial.print(Y_out);
-  // Serial.print(" Za: ");
-  // Serial.print(Z_out);
-  // Serial.println("");
+  lastX = X_out;
+  lastY = Y_out;
+  lastZ = Z_out;
 
-  delay(100);
+  delay(2000); 
 }
 
 int16_t readInt16()              //32-bit integers to 16-bit to account for negative values
