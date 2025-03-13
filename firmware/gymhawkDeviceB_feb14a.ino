@@ -25,6 +25,8 @@ int ADXL345 = 0x53;
 
 float X_out, Y_out, Z_out;
 
+int count = 0;
+
 void setup() {
   // Initialize serial and wait for port to open:
   Serial.begin(9600);
@@ -83,39 +85,47 @@ void loop() {
   ArduinoCloud.update();
   // Your code here 
   //Read x, y, and z axis acceleration values
-  Wire.beginTransmission(ADXL345);
-  Wire.write(0x32);                     //Start with register 0x32 (ACCEL_XOUT_H)
-  Wire.endTransmission(false);
-  Wire.requestFrom(ADXL345, 6, true);   //read 6 registers total, each axis value stored in 2 registers
+  //Wire.beginTransmission(ADXL345);
+  //Wire.write(0x32);                     //Start with register 0x32 (ACCEL_XOUT_H)
+ // Wire.endTransmission(false);
+  //Wire.requestFrom(ADXL345, 6, true);   //read 6 registers total, each axis value stored in 2 registers
   
-  /*
-  X_out = (Wire.read()|Wire.read()<<8); //X-axis value
-  X_out = X_out/65536;                  // divide raw value by 256 to get +-2g
-  Y_out = (Wire.read()|Wire.read()<<8); //Y-axis value
-  Y_out = Y_out/65536;
-  Z_out = (Wire.read()|Wire.read()<<8); //Z-axis value
-  Z_out = Z_out/256;
-  */
-
-  X_out = readInt16() / 256.f; //obtain x,y,z-axis values and scale (float)
-  Y_out = readInt16() / 256.f;
-  Z_out = readInt16() / 256.f;
-
-  if (Z_out < 0.98 || Z_out > 1.02){     //basic movement detection while module is stationed flat
-   MotionDetected();
-  }else if(Z_out >= 0.98 && Z_out <= 1.02){
-   NoMotion();
+  while(count < 50){
+    readAccel();
+    count++;
   }
+  //Serial.println("Sleeping for two minutes");
+  //ESP.deepSleep(20e6, WAKE_RF_DEFAULT);
+}
+
+void readAccel()
+{
+    Wire.beginTransmission(ADXL345);
+    Wire.write(0x32);                     //Start with register 0x32 (ACCEL_XOUT_H)
+    Wire.endTransmission(false);
+    Wire.requestFrom(ADXL345, 6, true);
   
-  Serial.print("Xa: ");
-  Serial.print(X_out);
-  Serial.print(" Ya: ");
-  Serial.print(Y_out);
-  Serial.print(" Za: ");
-  Serial.print(Z_out);
-  Serial.println("");
-  delay(100);
-  
+    X_out = readInt16() / 256.f; //obtain x,y,z-axis values and scale (float)
+    Y_out = readInt16() / 256.f;
+    Z_out = readInt16() / 256.f;
+
+    if (Z_out < 0.96 || Z_out > 1.04 || X_out > 0.1 || X_out < -0.1 || Y_out > 0.1 || Y_out < -0.1){     //basic movement detection while module is stationed flat
+    MotionDetected();
+      break;
+    }else{
+     NoMotion();
+    }
+
+    Serial.print("Xa: ");
+    Serial.print(X_out);
+    Serial.print(" Ya: ");
+    Serial.print(Y_out);
+    Serial.print(" Za: ");
+    Serial.print(Z_out);
+    Serial.println("");
+    while (millis() < 100){
+      // do nothing
+    }
 }
 
 int16_t readInt16()              //32-bit integers to 16-bit to account for negative values
@@ -128,14 +138,16 @@ int16_t readInt16()              //32-bit integers to 16-bit to account for nega
 void MotionDetected()
 {
   d1GreenInUse = 1;
-  digitalWrite(LED_BUILTIN, LOW);
-  delay(300);
+  digitalWrite(LED_BUILTIN,LOW);
+  //Serial.println("Motion detected");
+  
 }
 void NoMotion()
 {
   d1GreenInUse = 0;
   digitalWrite(LED_BUILTIN,HIGH);
-  delay(300);
+  //Serial.println("No motion detected");
+  
 }
 
 /*
