@@ -36,11 +36,15 @@
 
   The following variables are automatically generated and updated when changes are made to the Thing
 
+  float analogOffset;
   float d1BlueAltitude;
   float d1BlueLat;
   float d1BlueLong;
   float d1BlueRate;
-  int rmsCurrent;
+  float smoothedrmsCurrent;
+  float smoothingFactor;
+  float threshold;
+  int sampleNumber;
   bool d1BlueInUse;
 
   Variables which are marked as READ/WRITE in the Cloud Thing will also have functions
@@ -58,23 +62,32 @@
 const long updateInterval = 10000;  
 unsigned long lastUpdateTime = 0;
 
-//current signal constants
-int base = 5;
-int current = 0;
-
-
-// GPS constants
+//GPS constants
+const long innerLoopTimeout = 5000;
+const long outerLoopTimeout = 5000;
 static const int TXPin = 13, RXPin = 12;
 static const uint32_t GPSBaud = 9600;
 bool newData = false;
 
+/* 
 // GPS timing constants (for potential alternative way to poll GPS for a specified time period)
-//unsigned long startMillis;  //some global variables available anywhere in the program
-//unsigned long currentMillis;
-//const unsigned long period = 5000;
+unsigned long startMillis;  //some global variables available anywhere in the program
+unsigned long currentMillis;
+const unsigned long period = 5000;
+*/
 
 // TinyGPSPlus object
 TinyGPSPlus gps;
+
+//current signal constants
+int base = 5;
+float rmsCurrent = 0.0;
+float current = 0.0;
+float current1 = 0.0;
+float localsmoothingFactor = 0.2;
+int localsampleNumber = 200;
+float localanalogOffset = 496.0;
+float localthreshold = 0.0;
 
 // The serial connection to the GPS device
 SoftwareSerial ss(RXPin, TXPin);
@@ -106,7 +119,7 @@ void setup() {
   }
 */
   
-// switching out NTC of power supply
+// switching out of power supply in-rush current limiter
   pinMode(base, OUTPUT);
   delay(10000);
   digitalWrite(base, HIGH);
@@ -129,16 +142,22 @@ void setup() {
   setDebugMessageLevel(2);
   ArduinoCloud.printDebugInfo();
 
-  int signal = 0;
+  smoothingFactor = localsmoothingFactor;
+  sampleNumber = localsampleNumber;
+  analogOffset = localanalogOffset;
+  threshold = localthreshold;
 }
 
 void loop() {
-
+  
   // do-while loop waits for lat, long, alt update and then exits
   bool newData = false;
+  unsigned long outerLoopStart = millis();
+  
   do
   {
-    while (ss.available())
+    unsigned long innerLoopStart = millis();
+    while (ss.available() && ((millis() - innerLoopStart) < innerLoopTimeout))
     {
       char c = ss.read();
       gps.encode(c);
@@ -146,26 +165,36 @@ void loop() {
       newData = true;
       }
     }
-  } while (newData != true);
+  } while (newData != true && ((millis() - outerLoopStart) < outerLoopTimeout));
 
   //GPS variable updates
   d1BlueLat = gps.location.lat();
   d1BlueLong = gps.location.lng();
   d1BlueAltitude = gps.altitude.feet();
 
+
   //current signal calculation and update
-  long runningTot = 0;
-  for (int i=0; i<200; i++) {
-    current = analogRead(A0);
-    runningTot += current * current;
+  float currentSquared = 0.0;
+  for (int i=0; i<localsampleNumber; i++) {
+    current = analogRead(A0) - localanalogOffset;
+    currentSquared += current * current;
   }
-  rmsCurrent = sqrt(runningTot/200);
-  if (rmsCurrent>500) {
+  rmsCurrent = sqrt(currentSquared/float(localsampleNumber));
+  smoothedrmsCurrent = localsmoothingFactor * rmsCurrent + (1 - localsmoothingFactor) * smoothedrmsCurrent;
+  
+  if (smoothedrmsCurrent>localthreshold) {
     d1BlueInUse = 1;
   }
   else {
     d1BlueInUse = 0;
   }
+
+  /* Alternative method for obtaining peak value of waveform *needs work*
+  for (int i=0; i<200; i++) {
+    current1 = analogRead(A0);
+    peakCurrent = peakCurrent * (1 - localsmoothingFactor) + current1 * localsmoothingFactor;
+  }
+  */
   
   // cloud update frequency sequence
   ArduinoCloud.update();
@@ -175,6 +204,11 @@ void loop() {
     Serial.println(d1BlueInUse);
     lastUpdateTime = millis();
   }
+  
+}
+
+void onD1BlueInUseChange()  {
+  // Add your code here to act upon d1BlueInUse change
 }
 
 /*
@@ -188,14 +222,6 @@ void ond1BlueInUseChange()  {
 
 void onMachineARateChange() {
   // add code
-}
-
-/*
-  Since D1BlueInUse is READ_WRITE variable, onD1BlueInUseChange() is
-  executed every time a new value is received from IoT Cloud.
-*/
-void onD1BlueInUseChange()  {
-  // Add your code here to act upon D1BlueInUse change
 }
 
 /*
@@ -236,4 +262,38 @@ void onD1BlueLongChange()  {
 */
 void onD1BlueAltitudeChange()  {
   // Add your code here to act upon D1BlueAltitude change
+}
+
+
+/*
+  Since SmoothingFactor is READ_WRITE variable, onSmoothingFactorChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onSmoothingFactorChange()  {
+  localsmoothingFactor = smoothingFactor;
+}
+
+/*
+  Since SampleNumber is READ_WRITE variable, onSampleNumberChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onSampleNumberChange()  {
+  localsampleNumber = sampleNumber;
+}
+
+/*
+  Since AnalogOffset is READ_WRITE variable, onAnalogOffsetChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onAnalogOffsetChange()  {
+  localanalogOffset = analogOffset;
+}
+
+
+/*
+  Since Threshold is READ_WRITE variable, onThresholdChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onThresholdChange()  {
+  localthreshold = threshold;
 }
