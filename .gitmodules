@@ -1,0 +1,3 @@
+[submodule "gymhawkapp"]
+	path = gymhawkapp
+	url = git@github.com:ECESeniorDesign24-25/gymhawkapp.git
