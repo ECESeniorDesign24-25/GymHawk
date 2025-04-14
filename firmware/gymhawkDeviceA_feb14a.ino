@@ -12,7 +12,7 @@
 // const char DEVICE_KEY[]  = SECRET_DEVICE_KEY;    // Secret device password
 
 // void onMachineARateChange();
-// void ond1BlueInUseChange();
+// void onD1BlueInUseChange();
 
 // float machineARate;
 // bool d1BlueInUse;
@@ -36,15 +36,14 @@
 
   The following variables are automatically generated and updated when changes are made to the Thing
 
-  float analogOffset;
   float d1BlueAltitude;
+  float d1BlueAnalogOffset;
   float d1BlueLat;
   float d1BlueLong;
-  float d1BlueRate;
-  float smoothedrmsCurrent;
-  float smoothingFactor;
-  float threshold;
-  int sampleNumber;
+  float d1BlueRMS;
+  float d1BlueSmoothingFactor;
+  float d1BlueSmoothRMSCurrent;
+  float d1BlueThreshold;
   bool d1BlueInUse;
 
   Variables which are marked as READ/WRITE in the Cloud Thing will also have functions
@@ -76,24 +75,25 @@ unsigned long currentMillis;
 const unsigned long period = 5000;
 */
 
+
 // TinyGPSPlus object
 TinyGPSPlus gps;
 
 //current signal constants
 int base = 5;
-float rmsCurrent = 0.0;
 float current = 0.0;
 float current1 = 0.0;
-float localsmoothingFactor = 0.2;
-int localsampleNumber = 200;
-float localanalogOffset = 496.0;
-float localthreshold = 0.0;
+float localAnalogOffset = 500.0;
+float localThreshold = 10.0;
+float localSampleNumber = 200.0;
+float localSmoothingFactor = 0.15;
 
 // The serial connection to the GPS device
 SoftwareSerial ss(RXPin, TXPin);
 
+
 void setup() {
-  
+
   // Initialize serial and wait for port to open:
   Serial.begin(115200);
   // This delay gives the chance to wait for a Serial Monitor without blocking if none is found
@@ -118,20 +118,20 @@ void setup() {
     }
   }
 */
-  
-// switching out of power supply in-rush current limiter
+
+
+//switching out of power supply in-rush current limiter
   pinMode(base, OUTPUT);
   delay(10000);
   digitalWrite(base, HIGH);
   delay(1000);
   digitalWrite(base,LOW);
-
+  
   // Defined in thingProperties.h
   initProperties();
 
   // Connect to Arduino IoT Cloud
   ArduinoCloud.begin(ArduinoIoTPreferredConnection);
-  
   
      /*The following function allows you to obtain more information
      related to the state of network and IoT Cloud connection and errors
@@ -142,14 +142,20 @@ void setup() {
   setDebugMessageLevel(2);
   ArduinoCloud.printDebugInfo();
 
-  smoothingFactor = localsmoothingFactor;
-  sampleNumber = localsampleNumber;
-  analogOffset = localanalogOffset;
-  threshold = localthreshold;
+  //while (ArduinoCloud.connected() == 0) {
+   // Serial.println("Connecting to cloud");
+   // delay(1000);
+  //}
+
+  d1BlueAnalogOffset = localAnalogOffset;
+  d1BlueThreshold = localThreshold;
+  d1BlueSmoothingFactor = localSmoothingFactor;
+  
+
 }
 
 void loop() {
-  
+
   // do-while loop waits for lat, long, alt update and then exits
   bool newData = false;
   unsigned long outerLoopStart = millis();
@@ -164,8 +170,13 @@ void loop() {
       if (gps.location.isUpdated() && gps.altitude.isUpdated()) {
       newData = true;
       }
+      delay(1);
+      //Serial.println("exited innerLoop");
     }
+    delay(1);
   } while (newData != true && ((millis() - outerLoopStart) < outerLoopTimeout));
+  //Serial.println("exited outerLoop");
+  
 
   //GPS variable updates
   d1BlueLat = gps.location.lat();
@@ -175,14 +186,14 @@ void loop() {
 
   //current signal calculation and update
   float currentSquared = 0.0;
-  for (int i=0; i<localsampleNumber; i++) {
-    current = analogRead(A0) - localanalogOffset;
+  for (int i=0; i<localSampleNumber; i++) {
+    current = analogRead(A0) - localAnalogOffset;
     currentSquared += current * current;
   }
-  rmsCurrent = sqrt(currentSquared/float(localsampleNumber));
-  smoothedrmsCurrent = localsmoothingFactor * rmsCurrent + (1 - localsmoothingFactor) * smoothedrmsCurrent;
+  d1BlueRMS = sqrt(currentSquared/float(localSampleNumber));
+  d1BlueSmoothRMSCurrent = localSmoothingFactor * d1BlueRMS + (1 - localSmoothingFactor) * d1BlueSmoothRMSCurrent;
   
-  if (smoothedrmsCurrent>localthreshold) {
+  if (d1BlueSmoothRMSCurrent > localThreshold) {
     d1BlueInUse = 1;
   }
   else {
@@ -204,11 +215,7 @@ void loop() {
     Serial.println(d1BlueInUse);
     lastUpdateTime = millis();
   }
-  
-}
 
-void onD1BlueInUseChange()  {
-  // Add your code here to act upon d1BlueInUse change
 }
 
 /*
@@ -216,28 +223,12 @@ void onD1BlueInUseChange()  {
   executed every time a new value is received from IoT Cloud.
 */
 
-void ond1BlueInUseChange()  {
+void onD1BlueInUseChange()  {
   // Add your code here to act upon d1BlueInUse change
 }
 
 void onMachineARateChange() {
   // add code
-}
-
-/*
-  Since D1BlueRate is READ_WRITE variable, onD1BlueRateChange() is
-  executed every time a new value is received from IoT Cloud.
-*/
-void onD1BlueRateChange()  {
-  // Add your code here to act upon D1BlueRate change
-}
-
-/*
-  Since D1BlueGPS is READ_WRITE variable, onD1BlueGPSChange() is
-  executed every time a new value is received from IoT Cloud.
-*/
-void onD1BlueGPSChange()  {
-  // Add your code here to act upon D1BlueGPS change
 }
 
 /*
@@ -264,36 +255,59 @@ void onD1BlueAltitudeChange()  {
   // Add your code here to act upon D1BlueAltitude change
 }
 
-
 /*
-  Since SmoothingFactor is READ_WRITE variable, onSmoothingFactorChange() is
+  Since D1BlueAnalogOffset is READ_WRITE variable, onD1BlueAnalogOffsetChange() is
   executed every time a new value is received from IoT Cloud.
 */
-void onSmoothingFactorChange()  {
-  localsmoothingFactor = smoothingFactor;
+void onD1BlueAnalogOffsetChange()  {
+  localAnalogOffset = d1BlueAnalogOffset;
 }
 
 /*
-  Since SampleNumber is READ_WRITE variable, onSampleNumberChange() is
+  Since D1BlueThreshold is READ_WRITE variable, onD1BlueThresholdChange() is
   executed every time a new value is received from IoT Cloud.
 */
-void onSampleNumberChange()  {
-  localsampleNumber = sampleNumber;
+void onD1BlueThresholdChange()  {
+  localThreshold = d1BlueThreshold;
 }
 
 /*
-  Since AnalogOffset is READ_WRITE variable, onAnalogOffsetChange() is
+  Since D1BlueRunTime is READ_WRITE variable, onD1BlueRunTimeChange() is
   executed every time a new value is received from IoT Cloud.
 */
-void onAnalogOffsetChange()  {
-  localanalogOffset = analogOffset;
+
+void onD1BlueRunTimeChange()  {
+
 }
+
+/*
+  Since D1BlueSleepTime is READ_WRITE variable, onD1BlueSleepTimeChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+
+void onD1BlueSleepTimeChange()  {
+  
+}
+
+
+
+
 
 
 /*
-  Since Threshold is READ_WRITE variable, onThresholdChange() is
+  Since D1BlueSmoothingFactor is READ_WRITE variable, onD1BlueSmoothingFactorChange() is
   executed every time a new value is received from IoT Cloud.
 */
-void onThresholdChange()  {
-  localthreshold = threshold;
+void onD1BlueSmoothingFactorChange()  {
+  localSmoothingFactor = d1BlueSmoothingFactor;
+  
 }
+
+/*
+  Since D1BlueSampleNumber is READ_WRITE variable, onD1BlueSampleNumberChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onD1BlueSampleNumberChange()  {
+
+}
+
